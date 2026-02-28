@@ -18,8 +18,8 @@ export class ApiService {
         return firstValueFrom(this.http.get(`${this.base}/sessions/`));
     }
 
-    async createSession(name: string, model_config: any): Promise<any> {
-        return firstValueFrom(this.http.post(`${this.base}/sessions/create/`, { name, model_config }));
+    async createSession(name: string, cfg: any): Promise<any> {
+        return firstValueFrom(this.http.post(`${this.base}/sessions/create/`, { name, cfg }));
     }
 
     async deleteSession(name: string): Promise<any> {
@@ -36,5 +36,23 @@ export class ApiService {
 
     async getMetrics(): Promise<any> {
         return firstValueFrom(this.http.get(`${this.base}/metrics/`));
+    }
+
+    async getSessionStats(name: string): Promise<any> {
+        return firstValueFrom(this.http.get(`${this.base}/sessions/${encodeURIComponent(name)}/stats/`));
+    }
+
+    async compareSessions(session_a: string, session_b: string, inputs: number[]): Promise<any> {
+        return firstValueFrom(this.http.post(`${this.base}/compare/`, { session_a, session_b, inputs }));
+    }
+
+    async benchmarkSession(session_name: string, n_calls: number = 20, input_dim?: number): Promise<any> {
+        const body: any = { session_name, n_calls };
+        if (input_dim != null) body.input_dim = input_dim;
+        return firstValueFrom(this.http.post(`${this.base}/benchmark/`, body));
+    }
+
+    async getMetricsHistory(limit: number = 100): Promise<any> {
+        return firstValueFrom(this.http.get(`${this.base}/metrics/history/?limit=${limit}`));
     }
 }

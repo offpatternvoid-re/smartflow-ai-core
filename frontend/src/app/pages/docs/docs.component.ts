@@ -109,16 +109,36 @@ import { CommonModule } from '@angular/common';
                </p>
                <div class="code-block text-[12px]">
 <pre>&#123;
-  "name": "demo_model",
+  "name": "sentiment_v2",
   "model_config": &#123;
     "size": 128,
-    "activation": "relu"
+    "activation": "gelu",
+    "architecture": "attention",
+    "n_classes": 3,
+    "normalize": true,
+    "warmup": 5,
+    "seed": 42,
+    "description": "3-class sentiment with attention"
   &#125;
 &#125;</pre>
                </div>
              </div>
 
-             <!-- DELETE /sessions/{name} -->
+             <!-- GET /sessions/:name/stats/ -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EFF6FF] text-[#1D4ED8]">GET</span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/sessions/:name/stats/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Detailed stats for a single session: call_count, error_rate, latency_stats (p50/p95/p99), architecture, model_version.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>curl http://localhost:8000/api/v1/sessions/sentiment_v2/stats/</pre>
+               </div>
+             </div>
+
+             <!-- DELETE /sessions/:name/ -->
              <div class="card">
                <div class="flex items-center justify-between mb-2">
                  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FEF2F2] text-[#DC2626]">
@@ -178,9 +198,7 @@ import { CommonModule } from '@angular/common';
              <!-- GET /metrics -->
              <div class="card">
                <div class="flex items-center justify-between mb-2">
-                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EFF6FF] text-[#1D4ED8]">
-                   GET
-                 </span>
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EFF6FF] text-[#1D4ED8]">GET</span>
                  <code class="text-[13px] font-mono text-primary">/api/v1/metrics/</code>
                </div>
                <p class="text-[14px] text-muted mb-3">
@@ -188,6 +206,56 @@ import { CommonModule } from '@angular/common';
                </p>
                <div class="code-block text-[12px]">
 <pre>curl http://localhost:8000/api/v1/metrics/</pre>
+               </div>
+             </div>
+
+             <!-- GET /metrics/history/ -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EFF6FF] text-[#1D4ED8]">GET</span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/metrics/history/?limit=100</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Call history for charts. Returns list of calls with session_name, result, and timestamp.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>curl "http://localhost:8000/api/v1/metrics/history/?limit=100"</pre>
+               </div>
+             </div>
+
+             <!-- POST /compare/ -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#F0FDF4] text-[#16A34A]">POST</span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/compare/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 A/B compare two sessions on the same input. Returns agreement and latency_diff_ms.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>&#123;
+  "session_a": "model_linear",
+  "session_b": "model_attention",
+  "inputs": [0.1, -0.5, 0.3]
+&#125;</pre>
+               </div>
+             </div>
+
+             <!-- POST /benchmark/ -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#F0FDF4] text-[#16A34A]">POST</span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/benchmark/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Run N auto-generated inputs concurrently. Returns throughput_rps, latency p50/p95/p99, total_time_ms.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>&#123;
+  "session_name": "sentiment_v2",
+  "n_calls": 20,
+  "input_dim": 128
+&#125;</pre>
                </div>
              </div>
            </div>

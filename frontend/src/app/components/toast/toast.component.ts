@@ -13,12 +13,12 @@ import { NotificationService, Toast } from '../../services/notification.service'
            [ngClass]="{
              'border-l-[3px] border-l-success': toast.type === 'success',
              'border-l-[3px] border-l-red-500': toast.type === 'error',
-             'border-l-[3px] border-l-blue-500': toast.type === 'info'
+             'border-l-[3px] border-l-muted': toast.type === 'info'
            }">
         <div class="flex items-center gap-3">
           <svg *ngIf="toast.type === 'success'" class="w-5 h-5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
           <svg *ngIf="toast.type === 'error'" class="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-          <svg *ngIf="toast.type === 'info'" class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <svg *ngIf="toast.type === 'info'" class="w-5 h-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
           <span class="text-sm font-medium text-primary">{{ toast.message }}</span>
         </div>
         <button (click)="remove(toast.id)" class="text-muted hover:text-primary transition-colors">

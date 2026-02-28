@@ -6,3 +6,4 @@ redis==7.2.1
 python-dotenv==1.2.1
 # Torch is installed separately in Dockerfile to force CPU version
 django-cors-headers==4.3.1
+whitenoise==6.6.0

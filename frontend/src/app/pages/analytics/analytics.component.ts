@@ -5,6 +5,13 @@ import { ApiService } from '../../services/api.service';
 
 Chart.register(...registerables);
 
+const ARCH_CHART_COLORS: Record<string, string> = {
+  linear: '#3B82F6',
+  mlp: '#10B981',
+  attention: '#F97316',
+  autoencoder: '#A855F7',
+};
+
 @Component({
     selector: 'app-analytics',
     standalone: true,
@@ -31,17 +38,30 @@ Chart.register(...registerables);
         </div>
       </div>
 
-      <!-- First Row: Charts -->
+      <!-- Row 1: Architecture donut + Latency by session -->
       <div class="flex flex-col lg:flex-row gap-6 mb-6">
-         <!-- Latency Over Time -->
+         <div class="flex-[2] card min-h-[320px]">
+            <h3 class="text-[16px] font-bold tracking-tight mb-6">Architecture usage</h3>
+            <div class="h-[260px]">
+               <canvas #archChart></canvas>
+            </div>
+         </div>
+         <div class="flex-[4] card min-h-[320px]">
+            <h3 class="text-[16px] font-bold tracking-tight mb-6">Latency by session (avg ms)</h3>
+            <div class="h-[260px]">
+               <canvas #latencyBarChart></canvas>
+            </div>
+         </div>
+      </div>
+
+      <!-- Row 2: Latency over time + Calls per session -->
+      <div class="flex flex-col lg:flex-row gap-6 mb-6">
          <div class="flex-[6] card min-h-[400px]">
-            <h3 class="text-[16px] font-bold tracking-tight mb-6">Latency Over Time</h3>
+            <h3 class="text-[16px] font-bold tracking-tight mb-6">Calls over time</h3>
             <div class="h-[300px]">
                <canvas #latencyChart></canvas>
             </div>
          </div>
-
-         <!-- Calls per Session -->
          <div class="flex-[4] card min-h-[400px]">
             <h3 class="text-[16px] font-bold tracking-tight mb-6">Calls per Session</h3>
             <div class="h-[300px]">
@@ -104,27 +124,16 @@ Chart.register(...registerables);
                </div>
             </div>
 
-            <div class="space-y-6">
-               <div>
-                  <div class="flex justify-between text-[14px] font-semibold mb-3">
-                     <span>Positive Label</span>
-                     <span>62%</span>
-                  </div>
-                  <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner border border-[#E5E7EB]">
-                     <div class="h-full bg-primary rounded-full w-[62%]"></div>
-                  </div>
-               </div>
-               
-               <div>
-                  <div class="flex justify-between text-[14px] font-semibold mb-3">
-                     <span>Negative Label</span>
-                     <span>38%</span>
-                  </div>
-                  <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden shadow-inner border border-[#E5E7EB]">
-                     <div class="h-full bg-slate-400 rounded-full w-[38%]"></div>
+            <div class="space-y-6" *ngIf="classDistribution && classDistribution.length">
+               <div *ngFor="let item of classDistribution" class="flex justify-between items-center gap-2">
+                  <span class="text-[14px] font-semibold truncate">{{ item.label }}</span>
+                  <span class="text-[14px] font-mono">{{ item.pct }}%</span>
+                  <div class="flex-1 min-w-0 max-w-[120px] h-2.5 bg-[#E5E7EB] rounded-full overflow-hidden">
+                     <div class="h-full bg-[#0A0A0A] rounded-full" [style.width.%]="item.pct"></div>
                   </div>
                </div>
             </div>
+            <p *ngIf="!classDistribution?.length" class="text-[14px] text-muted">Run predictions to see class distribution.</p>
          </div>
       </div>
     </div>
@@ -136,12 +145,18 @@ export class AnalyticsComponent implements AfterViewInit {
     metrics: any = null;
     sessions: any[] = [];
     topSessions: any[] = [];
+    classDistribution: { label: string; count: number; pct: number }[] = [];
     private recentCalls: any[] = [];
+    private historyCalls: any[] = [];
     private latencyChartInstance?: Chart;
     private callsChartInstance?: Chart;
+    private archChartInstance?: Chart;
+    private latencyBarChartInstance?: Chart;
 
     @ViewChild('latencyChart') latencyChart!: ElementRef<HTMLCanvasElement>;
     @ViewChild('callsChart') callsChart!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('archChart') archChart!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('latencyBarChart') latencyBarChart!: ElementRef<HTMLCanvasElement>;
 
     constructor(private api: ApiService) { }
 
@@ -149,11 +164,22 @@ export class AnalyticsComponent implements AfterViewInit {
         await this.loadData();
     }
 
+    getArchColor(arch: string): string {
+      const map: Record<string, string> = {
+        linear: '#3B82F6',
+        mlp: '#10B981',
+        attention: '#F97316',
+        autoencoder: '#A855F7',
+      };
+      return map[arch] ?? '#6B7280';
+    }
+
     async loadData() {
         try {
-            const [metrics, sessionsRes] = await Promise.all([
+            const [metrics, sessionsRes, historyRes] = await Promise.all([
                 this.api.getMetrics(),
-                this.api.getSessions()
+                this.api.getSessions(),
+                this.api.getMetricsHistory(100).catch(() => ({ calls: [] }))
             ]);
             this.metrics = metrics;
             this.sessions = sessionsRes.sessions || [];
@@ -161,10 +187,29 @@ export class AnalyticsComponent implements AfterViewInit {
                 .sort((a, b) => (b.stats?.call_count || 0) - (a.stats?.call_count || 0))
                 .slice(0, 5);
             this.recentCalls = metrics.recent_calls || [];
+            this.historyCalls = historyRes?.calls || [];
+            this.buildClassDistribution();
             this.buildCharts();
         } catch (err) {
             console.error('Failed to load analytics data', err);
         }
+    }
+
+    private buildClassDistribution() {
+        const all = [...this.recentCalls, ...this.historyCalls];
+        const labelCount: Record<string, number> = {};
+        for (const c of all) {
+            const label = c.result?.prediction?.label ?? c.result?.label ?? 'unknown';
+            labelCount[label] = (labelCount[label] || 0) + 1;
+        }
+        const total = Object.values(labelCount).reduce((a, b) => a + b, 0);
+        this.classDistribution = total > 0
+            ? Object.entries(labelCount).map(([label, count]) => ({
+                label,
+                count,
+                pct: Math.round((count / total) * 100)
+            })).sort((a, b) => b.count - a.count)
+            : [];
     }
 
     onRangeChange(r: string) {
@@ -173,35 +218,80 @@ export class AnalyticsComponent implements AfterViewInit {
     }
 
     private buildCharts() {
+        this.buildArchChart();
+        this.buildLatencyBarChart();
         this.buildLatencyChart();
         this.buildCallsChart();
     }
 
-    private buildLatencyChart() {
-        const nowSec = Date.now() / 1000;
-        const windowSeconds = this.rangeToSeconds(this.range);
-        const cutoff = nowSec - windowSeconds;
-        const points = (this.recentCalls || []).filter((c: any) => (c.ts ?? 0) >= cutoff);
-
-        const labels = points.map((c: any) =>
-            new Date((c.ts ?? nowSec) * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-        );
-        const data = points.map((c: any) => c.result?.latency_ms ?? c.result?.latency ?? 0);
-
-        if (this.latencyChartInstance) {
-            this.latencyChartInstance.destroy();
+    private buildArchChart() {
+        if (this.archChartInstance) this.archChartInstance.destroy();
+        const counts: Record<string, number> = { linear: 0, mlp: 0, attention: 0, autoencoder: 0 };
+        for (const s of this.sessions) {
+            const a = s.stats?.architecture || 'linear';
+            if (counts[a] !== undefined) counts[a]++;
         }
+        const labels = Object.keys(counts).filter(k => counts[k] > 0);
+        const data = labels.map(k => counts[k]);
+        const colors = labels.map(k => ARCH_CHART_COLORS[k] || '#9CA3AF');
+        this.archChartInstance = new Chart(this.archChart.nativeElement, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
 
-        const hasData = data.length > 0;
-        const chartData = hasData ? data : [0, 0, 0, 0];
-        const chartLabels = hasData ? labels : ['-', '-', '-', '-'];
+    private buildLatencyBarChart() {
+        if (this.latencyBarChartInstance) this.latencyBarChartInstance.destroy();
+        const labels = this.sessions.map(s => s.name);
+        const data = this.sessions.map(s => s.stats?.avg_latency_ms || 0);
+        const colors = this.sessions.map((s: any) =>
+          this.getArchColor(s.model_config?.architecture ?? s.stats?.architecture ?? 'linear')
+        );
+        this.latencyBarChartInstance = new Chart(this.latencyBarChart.nativeElement, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{ data, backgroundColor: colors, borderRadius: 4, barPercentage: 0.6 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { min: 0, grid: { color: '#E5E7EB' } },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+    }
 
+    private buildLatencyChart() {
+        const windowSeconds = this.rangeToSeconds(this.range);
+        const cutoff = (Date.now() / 1000) - windowSeconds;
+        const points = (this.historyCalls || []).filter((c: any) => (c.ts ?? 0) >= cutoff);
+        const byMinute: Record<string, number> = {};
+        for (const c of points) {
+            const ts = c.ts ?? 0;
+            const key = new Date(ts * 1000).toISOString().slice(0, 16);
+            byMinute[key] = (byMinute[key] || 0) + 1;
+        }
+        const sorted = Object.entries(byMinute).sort(([a], [b]) => a.localeCompare(b)).slice(-24);
+        const labels = sorted.map(([k]) => k.slice(11, 16));
+        const data = sorted.map(([, v]) => v);
+
+        if (this.latencyChartInstance) this.latencyChartInstance.destroy();
         this.latencyChartInstance = new Chart(this.latencyChart.nativeElement, {
             type: 'line',
             data: {
-                labels: chartLabels,
+                labels: labels.length ? labels : ['-'],
                 datasets: [{
-                    data: chartData,
+                    data: data.length ? data : [0],
                     borderColor: '#0A0A0A',
                     backgroundColor: 'rgba(10, 10, 10, 0.04)',
                     borderWidth: 2,
@@ -214,7 +304,7 @@ export class AnalyticsComponent implements AfterViewInit {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                plugins: { legend: { display: false }, tooltip: { mode: 'index' } },
                 scales: {
                     x: { grid: { display: false } },
                     y: { min: 0, grid: { color: '#E5E7EB' } }
@@ -224,19 +314,19 @@ export class AnalyticsComponent implements AfterViewInit {
     }
 
     private buildCallsChart() {
-        if (this.callsChartInstance) {
-            this.callsChartInstance.destroy();
-        }
+        if (this.callsChartInstance) this.callsChartInstance.destroy();
         const labels = this.sessions.map(s => s.name);
         const data = this.sessions.map(s => s.stats?.call_count || 0);
-
+        const colors = this.sessions.map((s: any) =>
+          this.getArchColor(s.model_config?.architecture ?? s.stats?.architecture ?? 'linear')
+        );
         this.callsChartInstance = new Chart(this.callsChart.nativeElement, {
             type: 'bar',
             data: {
                 labels,
                 datasets: [{
                     data,
-                    backgroundColor: '#0A0A0A',
+                    backgroundColor: colors,
                     borderRadius: 4,
                     barPercentage: 0.6
                 }]
