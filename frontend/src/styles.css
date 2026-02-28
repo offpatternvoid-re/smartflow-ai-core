@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: #FFFFFF;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: #0A0A0A;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white border-none rounded-pill font-semibold cursor-pointer transition-all duration-150;
+    padding: 12px 28px;
+    font-size: 15px;
+  }
+
+  .btn-primary:hover {
+    @apply bg-primary-hover;
+    transform: translateY(-1px);
+  }
+
+  .btn-outline {
+    @apply bg-transparent text-primary rounded-pill font-semibold cursor-pointer transition-colors duration-150;
+    border: 1.5px solid #0A0A0A;
+    padding: 12px 28px;
+    font-size: 15px;
+  }
+
+  .btn-outline:hover {
+    background: #F9FAFB;
+  }
+
+  .card {
+    @apply bg-white rounded-card shadow-card;
+    border: 1px solid #E5E7EB;
+    padding: 24px;
+  }
+
+  .badge-active {
+    @apply inline-flex items-center gap-1.5 rounded-pill font-medium;
+    padding: 4px 10px;
+    font-size: 13px;
+    background: #F0FDF4;
+    color: #16A34A;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid #E5E7EB;
+  }
+
+  .code-block {
+    background: #0A0A0A;
+    color: #F3F4F6;
+    font-family: 'JetBrains Mono', monospace;
+    border-radius: 12px;
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+}

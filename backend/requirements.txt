@@ -1,0 +1,8 @@
+Django==6.0.2
+django-ninja==1.5.3
+psycopg2-binary==2.9.11
+uvicorn==0.41.0
+redis==7.2.1
+python-dotenv==1.2.1
+# Torch is installed separately in Dockerfile to force CPU version
+django-cors-headers==4.3.1
