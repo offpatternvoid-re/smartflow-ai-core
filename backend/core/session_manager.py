@@ -35,9 +35,32 @@ def get_metrics() -> dict:
     total_calls = sum(s["stats"]["call_count"] for s in sessions)
     lats        = [s["stats"]["avg_latency_ms"] for s in sessions
                    if s["stats"]["avg_latency_ms"] > 0]
+
+    # Build latency distribution from individual calls for percentiles
+    samples = [
+        (c.get("result", {}).get("latency_ms")
+         or c.get("result", {}).get("latency"))
+        for c in _call_log
+        if isinstance(
+            c.get("result", {}).get("latency_ms")
+            or c.get("result", {}).get("latency"),
+            (int, float),
+        )
+    ]
+    samples.sort()
+
+    def percentile(p: float) -> float:
+        if not samples:
+            return 0.0
+        idx = max(0, min(len(samples) - 1, int(len(samples) * p) - 1))
+        return round(samples[idx], 2)
+
     return {
         "active_sessions": len(sessions),
         "total_calls":     total_calls,
         "avg_latency_ms":  round(sum(lats)/len(lats), 2) if lats else 0,
         "success_rate":    99.2,
+        "p50_latency_ms":  percentile(0.5),
+        "p95_latency_ms":  percentile(0.95),
+        "p99_latency_ms":  percentile(0.99),
     }

@@ -3,6 +3,36 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg: #FFFFFF;
+  --text: #0A0A0A;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #D1D5DB transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
 @layer base {
 
   *,
@@ -13,34 +43,59 @@
 
   html {
     scroll-behavior: smooth;
+    background: var(--bg);
   }
 
   body {
-    background: #FFFFFF;
+    background: var(--bg);
     font-family: 'Inter', system-ui, sans-serif;
-    color: #0A0A0A;
+    color: var(--text);
     margin: 0;
     -webkit-font-smoothing: antialiased;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary text-white border-none rounded-pill font-semibold cursor-pointer transition-all duration-150;
-    padding: 12px 28px;
-    font-size: 15px;
+    background: #0A0A0A;
+    color: #FFFFFF;
+    border-radius: 9999px;
+    padding: 10px 22px;
+    font-weight: 500;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    transition: opacity 0.15s ease-out;
   }
 
   .btn-primary:hover {
-    @apply bg-primary-hover;
-    transform: translateY(-1px);
+    opacity: 0.85;
   }
 
   .btn-outline {
-    @apply bg-transparent text-primary rounded-pill font-semibold cursor-pointer transition-colors duration-150;
+    background: transparent;
+    color: #0A0A0A;
     border: 1.5px solid #0A0A0A;
-    padding: 12px 28px;
-    font-size: 15px;
+    border-radius: 9999px;
+    padding: 10px 22px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    transition: opacity 0.15s ease-out, background-color 0.15s ease-out;
   }
 
   .btn-outline:hover {
@@ -48,15 +103,19 @@
   }
 
   .card {
-    @apply bg-white rounded-card shadow-card;
+    background: #FFFFFF;
     border: 1px solid #E5E7EB;
+    border-radius: 12px;
     padding: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   }
 
   .badge-active {
-    @apply inline-flex items-center gap-1.5 rounded-pill font-medium;
+    @apply inline-flex items-center gap-1.5;
+    border-radius: 9999px;
     padding: 4px 10px;
     font-size: 13px;
+    font-weight: 500;
     background: #F0FDF4;
     color: #16A34A;
   }
@@ -68,11 +127,11 @@
 
   .code-block {
     background: #0A0A0A;
-    color: #F3F4F6;
+    color: #4ADE80;
     font-family: 'JetBrains Mono', monospace;
-    border-radius: 12px;
-    padding: 20px;
-    font-size: 14px;
-    line-height: 1.6;
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.5;
   }
 }

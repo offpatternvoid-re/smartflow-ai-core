@@ -47,49 +47,66 @@ import { Subscription } from 'rxjs';
         <div class="flex-[7]">
           <div class="flex items-center justify-between mb-6">
             <h2 class="text-[20px] font-semibold tracking-tight tracking-[-0.01em]">Active Sessions</h2>
-            <button class="bg-primary text-white border-none px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#262626] transition shadow-sm" routerLink="/sessions">
+            <button class="btn-primary px-4 py-2 text-[14px]" routerLink="/sessions">
               + New Session
             </button>
           </div>
           
-          <div class="border border-border rounded-card overflow-hidden bg-white shadow-sm">
-            <table class="w-full text-left border-collapse" *ngIf="sessions.length > 0">
-              <thead>
-                <tr class="bg-[#FAFAFA] border-b border-border">
-                  <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide">Name</th>
-                  <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide">Model Size</th>
-                  <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide">Calls</th>
-                  <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide">Latency</th>
-                  <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide">Created</th>
-                  <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide text-right">—</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-border text-[15px]">
-                <tr *ngFor="let s of sessions" class="hover:bg-slate-50 transition-colors">
-                  <td class="py-4 px-4 font-medium">
-                     <div class="flex items-center gap-3">
-                        {{ s.name }}
-                        <span class="badge-active"><span class="w-[6px] h-[6px] rounded-full bg-success"></span> active</span>
-                     </div>
-                  </td>
-                  <td class="py-4 px-4 text-muted">{{ s.model_config?.size }} ({{ s.model_config?.activation }})</td>
-                  <td class="py-4 px-4 font-mono">{{ s.stats?.call_count }}</td>
-                  <td class="py-4 px-4 font-mono">{{ s.stats?.avg_latency_ms }}ms</td>
-                  <td class="py-4 px-4 text-muted">{{ s.stats?.uptime_seconds }}s ago</td>
-                  <td class="py-4 px-4 flex justify-end gap-2">
-                    <button class="border shadow-sm border-border rounded px-4 py-1.5 text-sm bg-white hover:bg-[#F9FAFB] font-semibold" routerLink="/predict" [queryParams]="{session: s.name}">Run &#9654;</button>
-                    <button class="border shadow-sm border-border rounded px-4 py-1.5 text-sm bg-white hover:bg-red-50 text-red-600 font-semibold" (click)="deleteSession(s.name)">Delete &#10005;</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="border border-border rounded-card overflow-hidden bg-white">
+            <ng-container *ngIf="sessions && sessions.length; else sessionsEmpty">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-[#FAFAFA] border-b border-border">
+                    <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide">Session</th>
+                    <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide">Calls</th>
+                    <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide">Avg latency</th>
+                    <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide">Status</th>
+                    <th class="py-3 px-4 text-[13px] font-semibold text-muted uppercase tracking-wide text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border text-[15px]">
+                  <tr *ngFor="let s of sessions" class="hover:bg-[#F9FAFB] transition-colors">
+                    <td class="py-4 px-4">
+                      <span class="font-medium">{{ s.name }}</span>
+                    </td>
+                    <td class="py-4 px-4 font-mono">
+                      {{ s.stats?.call_count || 0 }}
+                    </td>
+                    <td class="py-4 px-4 font-mono">
+                      {{ s.stats?.avg_latency_ms || 0 }} ms
+                    </td>
+                    <td class="py-4 px-4">
+                      <span class="badge-active">
+                        <span class="w-[6px] h-[6px] rounded-full bg-success"></span>
+                        Active
+                      </span>
+                    </td>
+                    <td class="py-4 px-4 text-right">
+                      <a
+                        routerLink="/predict"
+                        [queryParams]="{ session: s.name }"
+                        class="text-[14px] font-medium text-primary hover:underline"
+                      >
+                        Predict &rarr;
+                      </a>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </ng-container>
 
-            <div *ngIf="sessions.length === 0" class="py-20 flex flex-col items-center justify-center text-center">
-              <svg class="w-12 h-12 text-[#E5E7EB] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
-              <h3 class="text-xl font-bold mb-2">No sessions yet</h3>
-              <p class="text-muted mb-6">Instantiate your first Closure inference session.</p>
-              <button class="btn-primary" routerLink="/sessions">Create first session &rarr;</button>
-            </div>
+            <ng-template #sessionsEmpty>
+              <div class="py-20 flex flex-col items-center justify-center text-center">
+                <svg class="w-12 h-12 text-[#E5E7EB] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4">
+                  </path>
+                </svg>
+                <h3 class="text-xl font-bold mb-2">No sessions yet</h3>
+                <p class="text-muted mb-6">Instantiate your first ML inference session to see it here.</p>
+                <button class="btn-primary" routerLink="/sessions">Create first session &rarr;</button>
+              </div>
+            </ng-template>
           </div>
         </div>
         

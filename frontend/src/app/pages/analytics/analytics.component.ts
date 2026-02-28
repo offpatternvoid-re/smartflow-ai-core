@@ -1,6 +1,7 @@
-import { Component, OnInit, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Chart, registerables } from 'chart.js';
+import { ApiService } from '../../services/api.service';
 
 Chart.register(...registerables);
 
@@ -16,8 +17,15 @@ Chart.register(...registerables);
            <h1 class="text-[32px] font-bold tracking-tight">Analytics</h1>
         </div>
         
-        <div class="flex gap-1 p-1 bg-[#FAFAFA] border border-border rounded-lg inline-flex shadow-sm">
-           <button *ngFor="let r of ranges" (click)="range = r" [class.bg-primary]="range === r" [class.text-white]="range === r" [class.shadow-sm]="range === r" [class.text-muted]="range !== r" class="px-4 py-1.5 rounded text-[13px] font-bold transition-colors">
+        <div class="flex gap-1 p-1 bg-[#FAFAFA] border border-border rounded-lg inline-flex">
+           <button
+             *ngFor="let r of ranges"
+             (click)="onRangeChange(r)"
+             [class.bg-primary]="range === r"
+             [class.text-white]="range === r"
+             [class.text-muted]="range !== r"
+             class="px-4 py-1.5 rounded text-[13px] font-bold transition-colors"
+           >
               {{ r }}
            </button>
         </div>
@@ -59,14 +67,16 @@ Chart.register(...registerables);
                      </tr>
                   </thead>
                   <tbody class="divide-y divide-border text-[14px]">
-                     <tr *ngFor="let i of [1,2,3,4,5]">
-                        <td class="py-4 text-muted">{{ i }}</td>
+                     <tr *ngFor="let s of topSessions; let i = index">
+                        <td class="py-4 text-muted">{{ i + 1 }}</td>
                         <td class="py-4 font-medium max-w-[150px] truncate group">
-                           session_model_v{{ i }}
+                           {{ s.name }}
                         </td>
-                        <td class="py-4 font-mono">{{ 1000 - i * 150 }}</td>
-                        <td class="py-4 font-mono">{{ 40 + i * 10 }}ms</td>
-                        <td class="py-4 font-mono font-semibold" [class.text-success]="i < 4" [class.text-yellow-600]="i >= 4">9{{ 9 - i }}.2%</td>
+                        <td class="py-4 font-mono">{{ s.stats?.call_count || 0 }}</td>
+                        <td class="py-4 font-mono">{{ s.stats?.avg_latency_ms || 0 }}ms</td>
+                        <td class="py-4 font-mono font-semibold text-success">
+                          {{ metrics?.success_rate || 99.2 }}%
+                        </td>
                      </tr>
                   </tbody>
                </table>
@@ -80,17 +90,17 @@ Chart.register(...registerables);
             <div class="flex items-center justify-between mb-8 p-4 bg-[#FAFAFA] border border-border rounded-lg text-center shadow-sm">
                <div class="px-2">
                   <div class="text-[12px] text-muted font-bold uppercase mb-1">P50</div>
-                  <div class="font-mono text-primary font-bold text-[18px]">42ms</div>
+                  <div class="font-mono text-primary font-bold text-[18px]">{{ metrics?.p50_latency_ms || 0 }}ms</div>
                </div>
                <div class="w-[1px] h-10 bg-border"></div>
                <div class="px-2">
                   <div class="text-[12px] text-muted font-bold uppercase mb-1">P95</div>
-                  <div class="font-mono text-primary font-bold text-[18px]">89ms</div>
+                  <div class="font-mono text-primary font-bold text-[18px]">{{ metrics?.p95_latency_ms || 0 }}ms</div>
                </div>
                <div class="w-[1px] h-10 bg-border"></div>
                <div class="px-2">
                   <div class="text-[12px] text-muted font-bold uppercase mb-1">P99</div>
-                  <div class="font-mono text-primary font-bold text-[18px]">134ms</div>
+                  <div class="font-mono text-primary font-bold text-[18px]">{{ metrics?.p99_latency_ms || 0 }}ms</div>
                </div>
             </div>
 
@@ -123,35 +133,82 @@ Chart.register(...registerables);
 export class AnalyticsComponent implements AfterViewInit {
     ranges = ['1h', '6h', '24h', '7d'];
     range = '24h';
+    metrics: any = null;
+    sessions: any[] = [];
+    topSessions: any[] = [];
+    private recentCalls: any[] = [];
+    private latencyChartInstance?: Chart;
+    private callsChartInstance?: Chart;
 
-    @ViewChild('latencyChart') latencyChart!: ElementRef;
-    @ViewChild('callsChart') callsChart!: ElementRef;
+    @ViewChild('latencyChart') latencyChart!: ElementRef<HTMLCanvasElement>;
+    @ViewChild('callsChart') callsChart!: ElementRef<HTMLCanvasElement>;
 
-    ngAfterViewInit() {
-        new Chart(this.latencyChart.nativeElement, {
+    constructor(private api: ApiService) { }
+
+    async ngAfterViewInit() {
+        await this.loadData();
+    }
+
+    async loadData() {
+        try {
+            const [metrics, sessionsRes] = await Promise.all([
+                this.api.getMetrics(),
+                this.api.getSessions()
+            ]);
+            this.metrics = metrics;
+            this.sessions = sessionsRes.sessions || [];
+            this.topSessions = [...this.sessions]
+                .sort((a, b) => (b.stats?.call_count || 0) - (a.stats?.call_count || 0))
+                .slice(0, 5);
+            this.recentCalls = metrics.recent_calls || [];
+            this.buildCharts();
+        } catch (err) {
+            console.error('Failed to load analytics data', err);
+        }
+    }
+
+    onRangeChange(r: string) {
+        this.range = r;
+        this.buildCharts();
+    }
+
+    private buildCharts() {
+        this.buildLatencyChart();
+        this.buildCallsChart();
+    }
+
+    private buildLatencyChart() {
+        const nowSec = Date.now() / 1000;
+        const windowSeconds = this.rangeToSeconds(this.range);
+        const cutoff = nowSec - windowSeconds;
+        const points = (this.recentCalls || []).filter((c: any) => (c.ts ?? 0) >= cutoff);
+
+        const labels = points.map((c: any) =>
+            new Date((c.ts ?? nowSec) * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+        );
+        const data = points.map((c: any) => c.result?.latency_ms ?? c.result?.latency ?? 0);
+
+        if (this.latencyChartInstance) {
+            this.latencyChartInstance.destroy();
+        }
+
+        const hasData = data.length > 0;
+        const chartData = hasData ? data : [0, 0, 0, 0];
+        const chartLabels = hasData ? labels : ['-', '-', '-', '-'];
+
+        this.latencyChartInstance = new Chart(this.latencyChart.nativeElement, {
             type: 'line',
             data: {
-                labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', '24:00'],
+                labels: chartLabels,
                 datasets: [{
-                    label: 'NLP Session',
-                    data: [45, 52, 38, 42, 60, 48, 46],
+                    data: chartData,
                     borderColor: '#0A0A0A',
-                    backgroundColor: 'rgba(10, 10, 10, 0.05)',
+                    backgroundColor: 'rgba(10, 10, 10, 0.04)',
                     borderWidth: 2,
                     fill: true,
-                    tension: 0.4,
+                    tension: 0.3,
                     pointRadius: 0,
-                    pointHoverRadius: 6
-                }, {
-                    label: 'Vision Session',
-                    data: [80, 85, 76, 90, 82, 78, 81],
-                    borderColor: '#9CA3AF',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.4,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    pointHoverRadius: 6
+                    pointHoverRadius: 4
                 }]
             },
             options: {
@@ -160,17 +217,25 @@ export class AnalyticsComponent implements AfterViewInit {
                 plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
                 scales: {
                     x: { grid: { display: false } },
-                    y: { min: 0, grid: { color: '#E5E7EB' }, border: { dash: [4, 4] } }
+                    y: { min: 0, grid: { color: '#E5E7EB' } }
                 }
             }
         });
+    }
 
-        new Chart(this.callsChart.nativeElement, {
+    private buildCallsChart() {
+        if (this.callsChartInstance) {
+            this.callsChartInstance.destroy();
+        }
+        const labels = this.sessions.map(s => s.name);
+        const data = this.sessions.map(s => s.stats?.call_count || 0);
+
+        this.callsChartInstance = new Chart(this.callsChart.nativeElement, {
             type: 'bar',
             data: {
-                labels: ['NLP Session', 'Vision Model', 'Categorizer', 'Spam Filter'],
+                labels,
                 datasets: [{
-                    data: [4200, 2800, 1900, 850],
+                    data,
                     backgroundColor: '#0A0A0A',
                     borderRadius: 4,
                     barPercentage: 0.6
@@ -182,10 +247,20 @@ export class AnalyticsComponent implements AfterViewInit {
                 indexAxis: 'y',
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { grid: { color: '#E5E7EB' }, border: { dash: [4, 4] } },
+                    x: { grid: { color: '#E5E7EB' } },
                     y: { grid: { display: false } }
                 }
             }
         });
+    }
+
+    private rangeToSeconds(r: string): number {
+        switch (r) {
+            case '1h': return 3600;
+            case '6h': return 6 * 3600;
+            case '24h': return 24 * 3600;
+            case '7d': return 7 * 24 * 3600;
+            default: return 24 * 3600;
+        }
     }
 }

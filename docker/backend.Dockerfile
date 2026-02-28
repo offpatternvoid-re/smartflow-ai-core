@@ -29,3 +29,4 @@ RUN chmod -R 755 /app/backend
 RUN chown -R www-data:www-data /app/backend
 
 WORKDIR /app/backend
+RUN python manage.py collectstatic --noinput || true

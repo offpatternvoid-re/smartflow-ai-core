@@ -56,7 +56,7 @@ import { NotificationService } from '../../services/notification.service';
             </div>
           </div>
 
-          <button type="submit" [disabled]="form.invalid || loading" class="w-full bg-primary text-white py-3.5 rounded-pill font-semibold text-[15px] hover:bg-[#262626] disabled:opacity-50 transition-colors shadow-sm">
+          <button type="submit" [disabled]="form.invalid || loading" class="w-full btn-primary">
              &#9654; Run Inference
           </button>
         </form>
@@ -85,28 +85,23 @@ import { NotificationService } from '../../services/notification.service';
 
            <!-- JSON Block -->
            <div class="code-block overflow-x-auto shadow-card">
-              <pre><code><span class="text-[#818CF8]">"status":</span> <span class="text-[#86EFAC]">"success"</span>,
-<span class="text-[#818CF8]">"prediction":</span> {{ result | json }}</code></pre>
+              <pre class="whitespace-pre">{{ summary | json }}</pre>
            </div>
 
            <!-- History Collapse -->
            <div class="pt-4 border-t border-border mt-8">
               <button class="flex items-center gap-2 text-[14px] font-semibold text-primary hover:text-muted transition-colors" (click)="showHistory = !showHistory">
                  <svg class="w-4 h-4 transform transition-transform" [class.-rotate-90]="!showHistory" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                 Previous Results
+                 Inference history
               </button>
               
               <div *ngIf="showHistory" class="mt-4 space-y-2">
-                 <div *ngFor="let h of history" class="text-[13px] font-mono flex items-center gap-3 py-1">
-                    <span class="text-primary font-medium">#{{ h.call_count || '?' }}</span>
-                    <span class="text-[#E5E7EB]">&middot;</span>
-                    <span class="text-muted">{{ h.prediction?.score || h.score || h.results?.[0]?.score }}</span>
-                    <span class="text-[#E5E7EB]">&middot;</span>
-                    <span [class.text-red-500]="(h.prediction?.label || h.label || h.results?.[0]?.label) === 'negative'" [class.text-success]="(h.prediction?.label || h.label || h.results?.[0]?.label) === 'positive'">{{ h.prediction?.label || h.label || h.results?.[0]?.label }}</span>
-                    <span class="text-[#E5E7EB]">&middot;</span>
-                    <span class="text-muted">{{ h.latency_ms || h.latency || h.results?.[0]?.latency_ms }}ms</span>
+                 <div *ngFor="let h of history" class="text-[13px] font-mono flex items-center gap-3 py-1 justify-between">
+                    <span class="text-primary font-medium">{{ h.session_name }}</span>
+                    <span class="text-muted">{{ h.latency_ms }} ms</span>
+                    <span class="text-muted">{{ relativeFromNow(h.ts) }}</span>
                  </div>
-                 <div *ngIf="history.length === 0" class="text-[13px] text-muted italic">No previous results for this session.</div>
+                 <div *ngIf="history.length === 0" class="text-[13px] text-muted italic">No previous calls yet.</div>
               </div>
            </div>
         </div>
@@ -124,7 +119,8 @@ export class PredictComponent implements OnInit {
     mode: 'single' | 'batch' = 'single';
     loading = false;
     result: any = null;
-    history: any[] = [];
+    history: { session_name: string; latency_ms: number; ts: number }[] = [];
+    summary: any = null;
     showHistory = false;
 
     constructor(
@@ -160,20 +156,42 @@ export class PredictComponent implements OnInit {
         try {
             let data = JSON.parse(this.form.value.inputs);
             this.loading = true;
-            let res;
+            let res: any;
             if (this.mode === 'single') {
                 res = await this.api.predict(this.form.value.session_name, data);
             } else {
                 res = await this.api.batchPredict(this.form.value.session_name, data);
             }
-            if (this.result) this.history.unshift(this.result);
-            if (this.history.length > 5) this.history.pop();
             this.result = res;
+            const latency = res.latency_ms || res.latency || (res.results?.[0]?.latency_ms ?? 0);
+            const outputShape = Array.isArray(res.results)
+                ? ['batch', res.results.length]
+                : Object.keys(res.prediction || res || {});
+            const now = Date.now();
+            this.summary = {
+                session_name: this.form.value.session_name,
+                latency_ms: latency,
+                output_shape: outputShape,
+                timestamp: new Date(now).toISOString()
+            };
+            this.history.unshift({
+                session_name: this.form.value.session_name,
+                latency_ms: latency,
+                ts: now
+            });
+            if (this.history.length > 10) this.history.pop();
             this.notify.show('success', 'Inference completed!');
         } catch (e: any) {
             this.notify.show('error', e?.error?.error || 'Invalid JSON or Request failed');
         } finally {
             this.loading = false;
         }
+    }
+
+    relativeFromNow(ts: number): string {
+        const diffSeconds = Math.floor((Date.now() - ts) / 1000);
+        if (diffSeconds < 60) return `${diffSeconds}s ago`;
+        if (diffSeconds < 3600) return `${Math.floor(diffSeconds / 60)}m ago`;
+        return `${Math.floor(diffSeconds / 3600)}h ago`;
     }
 }

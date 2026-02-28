@@ -20,9 +20,9 @@ module.exports = {
         h2: ['48px', { lineHeight: '1.1', letterSpacing: '-0.02em' }]
       },
       boxShadow: {
-        card: '0 1px 3px rgba(0,0,0,0.08)',
-        modal: '0 24px 64px rgba(0,0,0,0.12)',
-        hero: '0 24px 64px rgba(0,0,0,0.08)'
+        card: '0 1px 3px rgba(0,0,0,0.06)',
+        modal: 'none',
+        hero: 'none'
       },
       borderRadius: {
         card: '12px',

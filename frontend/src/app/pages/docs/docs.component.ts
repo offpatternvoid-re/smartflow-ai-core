@@ -1,6 +1,5 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 
 @Component({
    selector: 'app-docs',
@@ -50,9 +49,148 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
             </div>
          </div>
 
-         <!-- Right Column: Swagger iframe -->
-         <div class="flex-[6] rounded-xl border border-border shadow-sm overflow-hidden min-h-[calc(100vh-120px)] bg-white mt-4">
-             <iframe [src]="swaggerUrl" class="w-full h-full border-none min-h-[600px] lg:min-h-full"></iframe>
+         <!-- Right Column: Embedded API reference -->
+         <div class="flex-[6] mt-4">
+           <div class="flex items-center justify-between mb-6">
+             <h2 class="text-[20px] font-bold tracking-tight text-primary">API Reference</h2>
+             <a
+               href="http://localhost:8000/api/v1/docs"
+               target="_blank"
+               rel="noreferrer"
+               class="text-[13px] font-medium text-primary hover:underline"
+             >
+               Open Swagger UI ↗
+             </a>
+           </div>
+
+           <div class="space-y-4">
+             <!-- GET /health -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EFF6FF] text-[#1D4ED8]">
+                   GET
+                 </span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/health/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Lightweight health check for the SmartFlow backend and Redis connection.
+               </p>
+               <div class="code-block text-[12px]">
+                 <pre>curl http://localhost:8000/api/v1/health/</pre>
+               </div>
+             </div>
+
+             <!-- GET /sessions -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EFF6FF] text-[#1D4ED8]">
+                   GET
+                 </span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/sessions/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Returns all active inference sessions with their current statistics.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>curl http://localhost:8000/api/v1/sessions/</pre>
+               </div>
+             </div>
+
+             <!-- POST /sessions/create -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#F0FDF4] text-[#16A34A]">
+                   POST
+                 </span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/sessions/create/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Creates a new inference session backed by a closure with private weights.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>&#123;
+  "name": "demo_model",
+  "model_config": &#123;
+    "size": 128,
+    "activation": "relu"
+  &#125;
+&#125;</pre>
+               </div>
+             </div>
+
+             <!-- DELETE /sessions/{name} -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#FEF2F2] text-[#DC2626]">
+                   DELETE
+                 </span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/sessions/:name/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Deletes an existing session and frees its in-memory weights.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>curl -X DELETE http://localhost:8000/api/v1/sessions/demo_model/</pre>
+               </div>
+             </div>
+
+             <!-- POST /predict -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#F0FDF4] text-[#16A34A]">
+                   POST
+                 </span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/predict/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Runs a single prediction against the specified session and returns label, score and latency.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>&#123;
+  "session_name": "demo_model",
+  "inputs": [1.5, -0.2]
+&#125;</pre>
+               </div>
+             </div>
+
+             <!-- POST /batch -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#F0FDF4] text-[#16A34A]">
+                   POST
+                 </span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/batch/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Executes batch predictions using <code class="font-mono">asyncio.gather()</code> and aggregates results.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>&#123;
+  "session_name": "demo_model",
+  "inputs": [
+    [1.5, -0.2],
+    [0.3, 0.9]
+  ]
+&#125;</pre>
+               </div>
+             </div>
+
+             <!-- GET /metrics -->
+             <div class="card">
+               <div class="flex items-center justify-between mb-2">
+                 <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#EFF6FF] text-[#1D4ED8]">
+                   GET
+                 </span>
+                 <code class="text-[13px] font-mono text-primary">/api/v1/metrics/</code>
+               </div>
+               <p class="text-[14px] text-muted mb-3">
+                 Returns global counters, latency aggregates and a list of recent calls.
+               </p>
+               <div class="code-block text-[12px]">
+<pre>curl http://localhost:8000/api/v1/metrics/</pre>
+               </div>
+             </div>
+           </div>
          </div>
 
       </div>
@@ -60,11 +198,6 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
   `
 })
 export class DocsComponent {
-   swaggerUrl: SafeResourceUrl;
    jsonCreate: string = '{"name": "demo_model", "model_config": {"size": 128, "activation": "relu"}}';
    jsonPredict: string = '{"session_name": "demo_model", "inputs": [1.5, -0.2]}';
-
-   constructor(private sanitizer: DomSanitizer) {
-      this.swaggerUrl = this.sanitizer.bypassSecurityTrustResourceUrl('http://localhost:8000/api/v1/docs');
-   }
 }
