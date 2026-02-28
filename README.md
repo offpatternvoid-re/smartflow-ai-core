@@ -3,12 +3,12 @@
 > **СРСП** | Предмет: Модели, методы и алгоритмы Deep Learning
 > Факультет: Информационных технологий
 > Специальность (2-й курс): Высоконагруженные информационные системы с искусственным интеллектом
-> **Студент:** Турсунов Пархатжан
+> **Студент:** Керимбеков Руслан
 
 ---
 
 🌐 **Live demo:** [smartflow-ai.vercel.app](https://smartflow-ai.vercel.app)
-📦 **GitHub:** [github.com/your-repo/smartflow-ai](https://github.com/your-repo/smartflow-ai)
+📦 **GitHub:** [github.com/your-repo/smartflow-ai](https://github.com/offpatternvoid-re/smartflow-ai-core.git)
 
 ---
 
